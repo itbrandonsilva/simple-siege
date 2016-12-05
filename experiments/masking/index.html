@@ -1,0 +1,45 @@
+<body>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.2.3/pixi.min.js"></script>
+<script>
+
+var renderer = PIXI.autoDetectRenderer(800, 600, {backgroundColor : 0x000000});
+document.body.appendChild(renderer.view);
+
+var stage = new PIXI.Container();
+
+var background = new PIXI.Graphics();
+background.beginFill(0xff0000);
+background.drawRect(0, 0, 800, 600);
+background.endFill();
+stage.addChild(background);
+
+var mySprite = PIXI.Sprite.fromImage("img.png");
+mySprite.x -= 100;
+stage.addChild(mySprite)
+
+var mask = new PIXI.Graphics();
+mask.beginFill();
+mask.drawCircle(0, 0, 100);
+mask.endFill();
+stage.addChild(mask);
+
+stage.mask = mask;
+
+let mouseX = 0;
+let mouseY = 0;
+
+function animate() {
+    requestAnimationFrame(animate);
+    mask.x = mouseX;
+    mask.y = mouseY;
+    renderer.render(stage);
+}
+animate();
+
+renderer.view.addEventListener('mousemove', e => {
+    mouseX = e.layerX;
+    mouseY = e.layerY;
+});
+
+</script>
