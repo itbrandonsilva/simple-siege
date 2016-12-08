@@ -17,6 +17,14 @@
   },
   "homepage": "https://github.com/itbrandonsilva/simple-siege#readme",
   "dependencies": {
-    "redux": "^3.6.0"
+    "immutable": "^3.8.1",
+    "redux": "^3.6.0",
+    "redux-gateway": "github:itbrandonsilva/redux-gateway",
+    "rxjs": "^5.0.0-rc.5",
+    "vector2": "github:itbrandonsilva/vector2"
+  },
+  "devDependencies": {
+    "ts-loader": "^1.3.0",
+    "typescript": "^2.1.4"
   }
 }
