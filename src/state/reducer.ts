@@ -62,21 +62,21 @@ export const reducer = function (state: GState, action: GAction): GState {
     }
 }
 
-function playerJoin(state: GState, clientId: string) {
+export function playerJoin(state: GState, clientId: string) {
     return state.update('players', players => players.set(clientId, Immutable.fromJS({clientId, x: 100, y: 100, lastShot: 0})));
 }
 
-function playerLeave(state: GState, clientId: string) {
+export function playerLeave(state: GState, clientId: string) {
     return state.update('players', players => players.delete(clientId));
 }
 
-function handleShot(projectiles, player, mouseX, mouseY, ms) {
+export function handleShot(projectiles, player, mouseX, mouseY, ms) {
     console.log('HE SHOOTIN');
     let direction = new V(mouseX, mouseY).sub(new V(player.get('x'), player.get('y'))).normalize().toArray();
     return projectiles.push(Immutable.fromJS({source: player.get('clientId'), direction, x: player.get('x'), y: player.get('y')}));
 }
 
-function tick(state: GState, ms: number, inputs: PlayerInputs, events: Event[]): GState {
+export function tick(state: GState, ms: number, inputs: PlayerInputs, events: Event[]): GState {
     events.forEach(event => {
         switch (event.type) {
             case 'CLIENT_DISCONNECT':

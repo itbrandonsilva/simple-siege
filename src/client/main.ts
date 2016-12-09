@@ -8,7 +8,7 @@ let store = createStore(reducer);
 let client = new StateClient(
     (err, state, clientId) => store.dispatch({type: ACTION_TYPE.INIT_STATE, state}),
     actions => actions.forEach(store.dispatch),
-    'localhost'
+    '74.101.153.92'
 );
 
 let canvas = document.getElementById('canvas');

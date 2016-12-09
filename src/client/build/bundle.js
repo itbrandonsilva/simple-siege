@@ -49,7 +49,7 @@
 	var reducer_1 = __webpack_require__(54);
 	var redux_1 = __webpack_require__(57);
 	var store = redux_1.createStore(reducer_1.reducer);
-	var client = new client_1.StateClient(function (err, state, clientId) { return store.dispatch({ type: reducer_1.ACTION_TYPE.INIT_STATE, state: state }); }, function (actions) { return actions.forEach(store.dispatch); }, 'localhost');
+	var client = new client_1.StateClient(function (err, state, clientId) { return store.dispatch({ type: reducer_1.ACTION_TYPE.INIT_STATE, state: state }); }, function (actions) { return actions.forEach(store.dispatch); }, '74.101.153.92');
 	var canvas = document.getElementById('canvas');
 	var ctx = canvas.getContext('2d');
 	store.subscribe(function () {
@@ -8548,12 +8548,12 @@
 	    return x1 * x2 + y1 * y2;
 	}
 	var DEFAULT = Immutable.fromJS({
-	    bulletVelocity: 350,
+	    bulletVelocity: 550,
 	    playerRadius: 20,
-	    movementSpeed: 100,
+	    movementSpeed: 130,
 	    map: {
 	        walls: [
-	            [[200, 200], [500, 200]]
+	            [[100, 200], [400, 200]]
 	        ],
 	    },
 	    players: {},
@@ -8635,7 +8635,7 @@
 	                var a = new V(wall[0][0], wall[0][1]);
 	                var b = new V(wall[1][0], wall[1][1]);
 	                var length = a.distance(b);
-	                // Vector I've yet to understand
+	                // Vector from origin to desired location
 	                var tv = new V(nx, ny).sub(a);
 	                // Unit vector of the wall
 	                var unit = b.clone().sub(a).setLength(1);
@@ -8644,31 +8644,18 @@
 	                // If the dp is too small or too large, then there will be no collision at the players desired location
 	                if (dp < 0 - playerRadius || dp > length + playerRadius) { }
 	                else {
-	                    //console.log('------------------');
-	                    //console.log(nx, ny);
-	                    //unit.log();
-	                    //console.log(dp);
-	                    //console.log('Coll ---------');
 	                    // Repurpose the wall unit vector to be the point of contact with the wall
 	                    unit.setLength(dp);
-	                    //unit.log();
 	                    unit.add(a);
-	                    //unit.log();
 	                    // v becomes the vector/segment between the desired location and the point of contact, pointing away from the point of contact
 	                    var v = new V(nx, ny).sub(unit);
-	                    //v.log();
 	                    // distance between the desired location and the point of contact
 	                    var dist = v.getLength();
 	                    // if the distance is greater than the player radius, then the player is safe to move
 	                    if (dist > playerRadius) { }
 	                    else {
-	                        //console.log('OH JEEZ');
-	                        //console.log('Apply spacing...');
 	                        // Place the player as close to the wall as possible without colliding
-	                        //unit.log();
-	                        //v.log();
 	                        unit.add(v.setLength(playerRadius + 1));
-	                        //unit.log();
 	                        nx = unit.x;
 	                        ny = unit.y;
 	                    }
