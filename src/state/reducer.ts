@@ -1,5 +1,5 @@
 import {
-    SS_IMap, SS_IList, DEFAULT_STATE, PLAYER_RADIUS, MOVEMENT_SPEED, ACTION_TYPE,
+    SS_Map, SS_List, DEFAULT_STATE, PLAYER_RADIUS, MOVEMENT_SPEED, ACTION_TYPE, BULLET_VELOCITY,
     SS_MState, SS_ITickInfo, SS_IPlayerInputs, SS_IPlayer, SS_IAction, SS_MPlayer, SS_IBullet, SS_MPlayerInputs, SS_MPlayerInput, SS_MBullet, SS_MProjectile, SS_IPlayerInput, SS_LProjectiles
 } from './interfaces';
 import { Action } from 'redux';
@@ -47,7 +47,7 @@ export function tick(state: SS_MState, tickInfo: SS_ITickInfo): SS_MState {
 
 export function playerJoin(state: SS_MState, clientId: string) {
     let player: SS_IPlayer = {clientId, x: 100, y: 100, lastShot: 0, health: 100};
-    return state.update('players', players => players.set(clientId, SS_IMap<SS_IPlayer>(player)));
+    return state.update('players', players => players.set(clientId, SS_Map<SS_IPlayer>(player)));
 }
 
 export function playerLeave(state: SS_MState, clientId: string) {
@@ -89,19 +89,19 @@ export function handleLMB(state: SS_MState, clientId: string, input: SS_IPlayerI
 }
 
 export function handleShot(projectiles: SS_LProjectiles, player: SS_MPlayer, input: SS_IPlayerInput, ms: number): SS_LProjectiles {
-    let direction = SS_IList<number>(
+    let direction = SS_List<number>(
         new V(input.mouseX, input.mouseY)
             .sub(new V(player.get('x'), player.get('y')))
             .normalize().toArray()
     );
 
-    let bullet: SS_MBullet = SS_IMap<SS_IBullet>({
+    let bullet: SS_MBullet = SS_Map<SS_IBullet>({
         baseDamage: 15,
         source: player.get('clientId'),
         msAlive: 0,
         x: player.get('x'),
         y: player.get('y'),
-        velocity: 1100,
+        velocity: BULLET_VELOCITY,
         direction: direction,
     });
     return projectiles.push(bullet);

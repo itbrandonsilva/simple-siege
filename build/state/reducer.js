@@ -6,19 +6,6 @@ var V = vector2_1.default;
 function dot(x1, y1, x2, y2) {
     return x1 * x2 + y1 * y2;
 }
-var d = interfaces_1.SS_IMap({});
-var b = d.get("foo");
-var s = d.get("bar");
-d.set("foo", true);
-d.set("bar", 's');
-d.merge(d);
-//let inst = Immutable.Record({
-//   foo: true,
-//   bar: 'bar' 
-//});
-//export class IDerpMap extends inst {
-//
-//}
 exports.reducer = function (state, action) {
     switch (action.type) {
         case interfaces_1.ACTION_TYPE.TICK:
@@ -29,9 +16,28 @@ exports.reducer = function (state, action) {
             return interfaces_1.DEFAULT_STATE;
     }
 };
+function tick(state, tickInfo) {
+    var time = tickInfo.time;
+    var inputs = tickInfo.inputs;
+    var events = tickInfo.events;
+    events.forEach(function (event) {
+        switch (event.type) {
+            case 'CLIENT_DISCONNECT':
+                state = playerLeave(state, event.clientId);
+                break;
+            case 'CLIENT_CONNECT':
+                state = playerJoin(state, event.clientId);
+                break;
+        }
+    });
+    state = updatePlayers(state, tickInfo);
+    state = updateProjectiles(state, tickInfo);
+    return state;
+}
+exports.tick = tick;
 function playerJoin(state, clientId) {
     var player = { clientId: clientId, x: 100, y: 100, lastShot: 0, health: 100 };
-    return state.update('players', function (players) { return players.set(clientId, interfaces_1.SS_IMap(player)); });
+    return state.update('players', function (players) { return players.set(clientId, interfaces_1.SS_Map(player)); });
 }
 exports.playerJoin = playerJoin;
 function playerLeave(state, clientId) {
@@ -70,17 +76,16 @@ function handleLMB(state, clientId, input, time) {
 }
 exports.handleLMB = handleLMB;
 function handleShot(projectiles, player, input, ms) {
-    console.log('HE SHOOTIN');
-    var direction = interfaces_1.SS_IList(new V(input.mouseX, input.mouseY)
+    var direction = interfaces_1.SS_List(new V(input.mouseX, input.mouseY)
         .sub(new V(player.get('x'), player.get('y')))
         .normalize().toArray());
-    var bullet = interfaces_1.SS_IMap({
+    var bullet = interfaces_1.SS_Map({
         baseDamage: 15,
         source: player.get('clientId'),
         msAlive: 0,
         x: player.get('x'),
         y: player.get('y'),
-        velocity: 1100,
+        velocity: interfaces_1.BULLET_VELOCITY,
         direction: direction,
     });
     return projectiles.push(bullet);
@@ -102,7 +107,6 @@ function updatePlayerMovement(state, player, input, tickInfo) {
         ny += -speed * time;
     if (input.down)
         ny += speed * time;
-    //let direction = new V(nx, ny).sub(new V(ox, oy)).normalize();
     var world = state.get('world');
     var walls = world.get('walls');
     walls.forEach(function (iwall) {
@@ -162,25 +166,6 @@ function updatePlayers(state, tickInfo) {
     return state;
 }
 exports.updatePlayers = updatePlayers;
-function tick(state, tickInfo) {
-    var time = tickInfo.time;
-    var inputs = tickInfo.inputs;
-    var events = tickInfo.events;
-    events.forEach(function (event) {
-        switch (event.type) {
-            case 'CLIENT_DISCONNECT':
-                state = playerLeave(state, event.clientId);
-                break;
-            case 'CLIENT_CONNECT':
-                state = playerJoin(state, event.clientId);
-                break;
-        }
-    });
-    state = updatePlayers(state, tickInfo);
-    state = updateProjectiles(state, tickInfo);
-    return state;
-}
-exports.tick = tick;
 function actionTick(ms, inputs, events) {
     return { type: interfaces_1.ACTION_TYPE.TICK, ms: ms, inputs: inputs, events: events };
 }

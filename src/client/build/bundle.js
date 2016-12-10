@@ -8543,19 +8543,6 @@
 	function dot(x1, y1, x2, y2) {
 	    return x1 * x2 + y1 * y2;
 	}
-	var d = interfaces_1.SS_IMap({});
-	var b = d.get("foo");
-	var s = d.get("bar");
-	d.set("foo", true);
-	d.set("bar", 's');
-	d.merge(d);
-	//let inst = Immutable.Record({
-	//   foo: true,
-	//   bar: 'bar' 
-	//});
-	//export class IDerpMap extends inst {
-	//
-	//}
 	exports.reducer = function (state, action) {
 	    switch (action.type) {
 	        case interfaces_1.ACTION_TYPE.TICK:
@@ -8566,9 +8553,28 @@
 	            return interfaces_1.DEFAULT_STATE;
 	    }
 	};
+	function tick(state, tickInfo) {
+	    var time = tickInfo.time;
+	    var inputs = tickInfo.inputs;
+	    var events = tickInfo.events;
+	    events.forEach(function (event) {
+	        switch (event.type) {
+	            case 'CLIENT_DISCONNECT':
+	                state = playerLeave(state, event.clientId);
+	                break;
+	            case 'CLIENT_CONNECT':
+	                state = playerJoin(state, event.clientId);
+	                break;
+	        }
+	    });
+	    state = updatePlayers(state, tickInfo);
+	    state = updateProjectiles(state, tickInfo);
+	    return state;
+	}
+	exports.tick = tick;
 	function playerJoin(state, clientId) {
 	    var player = { clientId: clientId, x: 100, y: 100, lastShot: 0, health: 100 };
-	    return state.update('players', function (players) { return players.set(clientId, interfaces_1.SS_IMap(player)); });
+	    return state.update('players', function (players) { return players.set(clientId, interfaces_1.SS_Map(player)); });
 	}
 	exports.playerJoin = playerJoin;
 	function playerLeave(state, clientId) {
@@ -8607,17 +8613,16 @@
 	}
 	exports.handleLMB = handleLMB;
 	function handleShot(projectiles, player, input, ms) {
-	    console.log('HE SHOOTIN');
-	    var direction = interfaces_1.SS_IList(new V(input.mouseX, input.mouseY)
+	    var direction = interfaces_1.SS_List(new V(input.mouseX, input.mouseY)
 	        .sub(new V(player.get('x'), player.get('y')))
 	        .normalize().toArray());
-	    var bullet = interfaces_1.SS_IMap({
+	    var bullet = interfaces_1.SS_Map({
 	        baseDamage: 15,
 	        source: player.get('clientId'),
 	        msAlive: 0,
 	        x: player.get('x'),
 	        y: player.get('y'),
-	        velocity: 1100,
+	        velocity: interfaces_1.BULLET_VELOCITY,
 	        direction: direction,
 	    });
 	    return projectiles.push(bullet);
@@ -8639,7 +8644,6 @@
 	        ny += -speed * time;
 	    if (input.down)
 	        ny += speed * time;
-	    //let direction = new V(nx, ny).sub(new V(ox, oy)).normalize();
 	    var world = state.get('world');
 	    var walls = world.get('walls');
 	    walls.forEach(function (iwall) {
@@ -8699,25 +8703,6 @@
 	    return state;
 	}
 	exports.updatePlayers = updatePlayers;
-	function tick(state, tickInfo) {
-	    var time = tickInfo.time;
-	    var inputs = tickInfo.inputs;
-	    var events = tickInfo.events;
-	    events.forEach(function (event) {
-	        switch (event.type) {
-	            case 'CLIENT_DISCONNECT':
-	                state = playerLeave(state, event.clientId);
-	                break;
-	            case 'CLIENT_CONNECT':
-	                state = playerJoin(state, event.clientId);
-	                break;
-	        }
-	    });
-	    state = updatePlayers(state, tickInfo);
-	    state = updateProjectiles(state, tickInfo);
-	    return state;
-	}
-	exports.tick = tick;
 	function actionTick(ms, inputs, events) {
 	    return { type: interfaces_1.ACTION_TYPE.TICK, ms: ms, inputs: inputs, events: events };
 	}
@@ -8730,20 +8715,21 @@
 
 	"use strict";
 	var immutable_1 = __webpack_require__(56);
-	function SS_IMap(data) {
+	function SS_Map(data) {
 	    return immutable_1.fromJS(data);
 	}
-	exports.SS_IMap = SS_IMap;
-	function SS_IList(data) {
+	exports.SS_Map = SS_Map;
+	function SS_List(data) {
 	    return immutable_1.fromJS(data);
 	}
-	exports.SS_IList = SS_IList;
+	exports.SS_List = SS_List;
 	;
 	;
 	;
 	;
 	exports.PLAYER_RADIUS = 20;
 	exports.MOVEMENT_SPEED = 130;
+	exports.BULLET_VELOCITY = 1500;
 	var ACTION_TYPE;
 	(function (ACTION_TYPE) {
 	    ACTION_TYPE[ACTION_TYPE["INIT_STATE"] = 0] = "INIT_STATE";
@@ -8753,17 +8739,17 @@
 	;
 	;
 	;
-	exports.DEFAULT_STATE = SS_IMap({
-	    world: SS_IMap({
-	        walls: SS_IList([
-	            SS_IList([
-	                SS_IList([100, 200]),
-	                SS_IList([400, 200])
+	exports.DEFAULT_STATE = SS_Map({
+	    world: SS_Map({
+	        walls: SS_List([
+	            SS_List([
+	                SS_List([100, 200]),
+	                SS_List([400, 200])
 	            ])
 	        ])
 	    }),
-	    players: SS_IMap({}),
-	    projectiles: SS_IList([])
+	    players: SS_Map({}),
+	    projectiles: SS_List([])
 	});
 
 
