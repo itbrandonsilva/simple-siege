@@ -1,6 +1,7 @@
 import { StateClient } from 'redux-gateway/build/client';
 import * as Rx from 'rxjs';
-import { reducer, ACTION_TYPE } from '../state/reducer';
+import { reducer } from '../state/reducer';
+import { ACTION_TYPE } from '../state/interfaces';
 import { createStore} from 'redux';
 
 let store = createStore(reducer);
@@ -29,7 +30,7 @@ store.subscribe(() => {
         ctx.fill();
     }
 
-    state.map.walls.forEach(wall => {
+    state.world.walls.forEach(wall => {
         ctx.beginPath();
         ctx.moveTo(wall[0][0], wall[0][1]);
         ctx.lineTo(wall[1][0], wall[1][1]);
@@ -43,7 +44,6 @@ store.subscribe(() => {
         ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI*2);
         ctx.fill();
     });
-    //console.log(JSON.stringify(store.getState().toJS().players));
 });
 
 const KEY_CODES = [87, 65, 83, 68];

@@ -1,11 +1,12 @@
-import { reducer, actionTick, PlayerInput } from './../state/reducer';
+import { reducer, actionTick } from '../state/reducer';
+import { SS_IPlayerInputs, SS_IPlayerInput } from '../state/interfaces';
 import { StateServer, Input, EventHandler } from 'redux-gateway';
 import { createStore, Store, applyMiddleware } from 'redux';
 
 export class SSServer {
     private store: Store<any>;
     private server: StateServer;
-    private inputs = {};
+    private inputs: SS_IPlayerInputs = {};
 
     constructor() {
         this.server = new StateServer(() => this.store.getState(), this.inputHandler.bind(this));
@@ -26,7 +27,7 @@ export class SSServer {
 
     inputHandler(input: Input) {
         let { clientId } = input;
-        let inputs: PlayerInput = this.inputs[clientId] || (this.inputs[clientId] = {clientId});
+        let inputs: SS_IPlayerInput = this.inputs[clientId] || (this.inputs[clientId] = {clientId});
         inputs[input.name] = input.value;
     }
 

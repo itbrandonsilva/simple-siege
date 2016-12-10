@@ -1,7 +1,7 @@
 "use strict";
-var reducer_1 = require('./../state/reducer');
-var redux_gateway_1 = require('redux-gateway');
-var redux_1 = require('redux');
+var reducer_1 = require("../state/reducer");
+var redux_gateway_1 = require("redux-gateway");
+var redux_1 = require("redux");
 var SSServer = (function () {
     function SSServer() {
         var _this = this;
