@@ -47,9 +47,9 @@ exports.playerLeave = playerLeave;
 function updateProjectiles(state, tickInfo) {
     return state.update('projectiles', function (projectiles) {
         return projectiles.map(function (projectile) {
-            var direction = projectile.get('direction');
+            var direction = vector2_1.default.from(projectile.get('direction').toJS());
             var velocity = projectile.get('velocity') * (tickInfo.time);
-            var vector = new vector2_1.default(direction.get(0), direction.get(1)).setLength(velocity);
+            var vector = direction.setLength(velocity);
             return projectile.update('x', function (x) { return x + vector.x; }).update('y', function (y) { return y + vector.y; });
         });
     });

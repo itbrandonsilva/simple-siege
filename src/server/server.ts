@@ -1,6 +1,6 @@
 import { reducer, actionTick } from '../state/reducer';
 import { SS_IPlayerInputs, SS_IPlayerInput } from '../state/interfaces';
-import { StateServer, Input, EventHandler } from 'redux-gateway';
+import { StateServer, RG_IInput } from 'redux-gateway';
 import { createStore, Store, applyMiddleware } from 'redux';
 
 export class SSServer {
@@ -25,7 +25,7 @@ export class SSServer {
         console.log('Started...');
     }
 
-    inputHandler(input: Input) {
+    inputHandler(input: RG_IInput) {
         let { clientId } = input;
         let inputs: SS_IPlayerInput = this.inputs[clientId] || (this.inputs[clientId] = {clientId});
         inputs[input.name] = input.value;

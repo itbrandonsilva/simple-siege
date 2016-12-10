@@ -8584,9 +8584,10 @@
 	function updateProjectiles(state, tickInfo) {
 	    return state.update('projectiles', function (projectiles) {
 	        return projectiles.map(function (projectile) {
-	            var direction = projectile.get('direction');
+	            var direction = vector2_1.default.from(projectile.get('direction').toJS());
+	            direction.log();
 	            var velocity = projectile.get('velocity') * (tickInfo.time);
-	            var vector = new vector2_1.default(direction.get(0), direction.get(1)).setLength(velocity);
+	            var vector = direction.setLength(velocity);
 	            return projectile.update('x', function (x) { return x + vector.x; }).update('y', function (y) { return y + vector.y; });
 	        });
 	    });
@@ -13757,6 +13758,9 @@
 	        if (y === void 0) { y = 0; }
 	        this._v = [x, y];
 	    }
+	    Vector2.from = function (a) {
+	        return new Vector2(a[0], a[1]);
+	    };
 	    Object.defineProperty(Vector2.prototype, "x", {
 	        get: function () {
 	            return this._v[0];
@@ -13858,6 +13862,13 @@
 	      */
 	    Vector2.prototype.div = function (scale) {
 	        return this.divide(scale);
+	    };
+	    /**
+	      * Dot product of two vectors.
+	      */
+	    Vector2.prototype.dot = function (v) {
+	        var v1 = this;
+	        return v1.x * v.x + v1.y * v.y;
 	    };
 	    Vector2.prototype.isEqualTo = function (vector) {
 	        return (this._v[0] == vector._v[0] && this._v[1] == vector._v[1]);

@@ -3,7 +3,7 @@ import {
     SS_MState, SS_ITickInfo, SS_IPlayerInputs, SS_IPlayer, SS_IAction, SS_MPlayer, SS_IBullet, SS_MPlayerInputs, SS_MPlayerInput, SS_MBullet, SS_MProjectile, SS_IPlayerInput, SS_LProjectiles
 } from './interfaces';
 import { Action } from 'redux';
-import { Event, Input } from 'redux-gateway';
+import { RG_IEvent } from 'redux-gateway';
 import { Map, List, fromJS } from 'immutable';
 import Vector2 from 'vector2';
 
@@ -57,9 +57,9 @@ export function playerLeave(state: SS_MState, clientId: string) {
 export function updateProjectiles(state: SS_MState, tickInfo: SS_ITickInfo): SS_MState {
     return state.update('projectiles', projectiles => {
         return projectiles.map(function (projectile) {
-            let direction = projectile.get('direction');
+            let direction = Vector2.from(projectile.get('direction').toJS());
             let velocity = projectile.get('velocity') * (tickInfo.time);
-            let vector = new Vector2(direction.get(0), direction.get(1)).setLength(velocity);
+            let vector = direction.setLength(velocity);
             return projectile.update('x', x => x + vector.x).update('y', y => y + vector.y);
         });
     });
@@ -190,6 +190,6 @@ export function updatePlayers(state: SS_MState, tickInfo: SS_ITickInfo): SS_MSta
     return state;
 }
 
-export function actionTick(ms: number, inputs: SS_IPlayerInputs, events: Event[]): SS_IAction {
+export function actionTick(ms: number, inputs: SS_IPlayerInputs, events: RG_IEvent[]): SS_IAction {
     return {type: ACTION_TYPE.TICK, ms, inputs, events};
 }

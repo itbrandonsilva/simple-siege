@@ -1,5 +1,5 @@
 import { Map, List, fromJS } from 'immutable';
-import { Event, Input } from 'redux-gateway';
+import { RG_IEvent } from 'redux-gateway';
 import { Action } from 'redux';
 
 export interface SS_Map<I> extends Map<any, any> {
@@ -96,7 +96,7 @@ export interface SS_ITickInfo {
     events: SS_IEvents;
 }
 
-export interface SS_IEvents extends Array<Event> {};
+export interface SS_IEvents extends Array<RG_IEvent> {};
 export interface SS_IAction extends Action {
     type: ACTION_TYPE;
 
