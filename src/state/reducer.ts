@@ -1,17 +1,16 @@
 import {
-    SS_Map, SS_List, DEFAULT_STATE, PLAYER_RADIUS, MOVEMENT_SPEED, ACTION_TYPE, BULLET_VELOCITY,
-    SS_MState, SS_ITickInfo, SS_IPlayerInputs, SS_IPlayer, SS_IAction, SS_MPlayer, SS_IBullet, SS_MPlayerInputs, SS_MPlayerInput, SS_MBullet, SS_MProjectile, SS_IPlayerInput, SS_LProjectiles
+    SS_Map, SS_List, DEFAULT_STATE, PLAYER_RADIUS, MOVEMENT_SPEED, ACTION_TYPE, BULLET_VELOCITY, THROW_COOLDOWN,
+    SS_MState, SS_ITickInfo, SS_IPlayerInputs, SS_IPlayer, SS_IAction, SS_MPlayer, SS_IBullet, SS_MPlayerInputs, SS_MPlayerInput, SS_MBullet, SS_MProjectile, SS_IPlayerInput, SS_LProjectiles, SS_LWall, SS_MThrowable, SS_IThrowable
 } from './interfaces';
 import { Action } from 'redux';
 import { RG_IEvent } from 'redux-gateway';
 import { Map, List, fromJS } from 'immutable';
 import Vector2 from 'vector2';
-
 const V = Vector2;
 
-function dot(x1, y1, x2, y2) {
-    return x1 * x2 + y1 * y2;  
-}
+//function dot(x1, y1, x2, y2) {
+//    return x1 * x2 + y1 * y2;  
+//}
 
 export const reducer = function (state: SS_MState, action: SS_IAction): SS_MState {
     switch (action.type) {
@@ -46,7 +45,7 @@ export function tick(state: SS_MState, tickInfo: SS_ITickInfo): SS_MState {
 }
 
 export function playerJoin(state: SS_MState, clientId: string) {
-    let player: SS_IPlayer = {clientId, x: 100, y: 100, lastShot: 0, health: 100};
+    let player: SS_IPlayer = {clientId, x: 100, y: 100, lastShot: 0, lastThrow: 0, health: 100};
     return state.update('players', players => players.set(clientId, SS_Map<SS_IPlayer>(player)));
 }
 
@@ -56,39 +55,144 @@ export function playerLeave(state: SS_MState, clientId: string) {
 
 export function updateProjectiles(state: SS_MState, tickInfo: SS_ITickInfo): SS_MState {
     return state.update('projectiles', projectiles => {
-        return projectiles.map(function (projectile) {
+
+        projectiles = projectiles.map((projectile, index) => {
+            let final: Vector2;
+
+            let type = projectile.get('type');
+            let origin = new Vector2(projectile.get('x'), projectile.get('y'));
             let direction = Vector2.from(projectile.get('direction').toJS());
-            let velocity = projectile.get('velocity') * (tickInfo.time);
-            let vector = direction.setLength(velocity);
-            return projectile.update('x', x => x + vector.x).update('y', y => y + vector.y);
+            let velocity = projectile.get('velocity');
+            let travel = velocity * tickInfo.time;
+            
+            while(true) {
+                let destination = origin.clone().add(direction.clone().setLength(travel));
+
+                let intersections: Array<{p: Vector2, w: Vector2[]}> = [];
+                let wall;
+                state.get('world').get('walls').forEach((wall: SS_LWall) => {
+                    let a = Vector2.from(wall.get(0).toJS());
+                    let b = Vector2.from(wall.get(1).toJS());
+
+                    let intersection = Vector2.segmentsIntersection(origin, destination, a, b);
+                    if ( intersection ) intersections.push({p: intersection, w: [a, b]});
+                });
+
+                let shortest = destination.distance(origin);
+                let intersection = intersections.reduce((destination, intersection) => {
+                    let dist = intersection.p.distance(origin);
+                    if (dist < shortest) {
+                        shortest = dist;
+                        return intersection;
+                    } else return destination;
+                }, {p: destination, w: null});
+
+                final = intersection.p;
+
+                if ( ! final.eql(destination) ) {
+                    if (type === 'bullet') {
+                        projectile = projectile.set('destroy', true);
+                        break;
+                    } else {
+                        //projectile = projectile.set('destroy', true);
+                        let travelled = origin.distance(final);
+                        travel -= travelled;
+                        if (travel <= 0.001) {
+                            break;
+                        }
+                        let wallVector = intersection.w[1].clone().sub(intersection.w[0]).normalize();
+                        let v = origin.clone().sub(intersection.w[0]);
+                        let dot = v.dot(wallVector);
+                        wallVector.setLength(dot);
+                        wallVector.add(intersection.w[0]);
+                        direction = origin.clone().add(wallVector.clone().sub(origin).mul(2)).sub(final).normalize().rotate180();
+                        origin = origin.add(final.clone().sub(origin).mul(0.99));
+                    }
+                } else break;
+            }
+
+            if (type === 'throwable') {
+                projectile = projectile
+                    .set('velocity', Math.max(0, velocity - ((<SS_MThrowable>projectile).get('deceleration') * tickInfo.time)))
+                    .set('direction', SS_List<number>(direction.toArray()));
+            }
+
+            return projectile
+                .update('x', x => final.x)
+                .update('y', y => final.y)
+                .update('msAlive', ms => ms + tickInfo.time);
+        });
+
+        projectiles = projectiles.filter((projectile) => {
+            if (projectile.get('destroy')) return false;
+
+            let x = projectile.get('x');
+            if (x < 0 || x > 2000) return false;
+
+            let y = projectile.get('y');
+            if (y < 0 || y > 2000) return false;
+
+            let ms = projectile.get('msAlive');
+            let max = projectile.get('msAliveMax');
+            if (ms > max) return false;
+            return true;
+        });
+
+        return projectiles;
+    });
+}
+
+export function handleSpace(state: SS_MState, clientId: string, input: SS_IPlayerInput, time: number): SS_MState {
+    if ( ! input.space ) return state;
+    let player = state.get('players').get(clientId);
+    if (player.get('lastThrow') !== 0) return state;
+
+    state = handleThrow(state, clientId, input, time);
+    return state.update('players', players => {
+        return players.update(clientId, player => {
+            return player.set('lastThrow', THROW_COOLDOWN);
         });
     });
 }
 
 export function handleLMB(state: SS_MState, clientId: string, input: SS_IPlayerInput, time: number): SS_MState {
-    let bulletWasFired = false;
+    if ( ! input.lmb ) return state;
 
     let player = state.get('players').get(clientId);
+    if ( player.get('lastShot') !== 0 ) return state;
 
-    state = state.update('projectiles', projectiles => {
-        let lastShot = player.get('lastShot');
-        if (lastShot === 0) {
-            bulletWasFired = true;
-            projectiles = handleShot(projectiles, player, input, time);
-        }
-        return projectiles;
-    });
-
-    if (bulletWasFired) state = state.update('players', players => {
-        return players.update(player.get('clientId'), player => {
+    state = handleShot(state, clientId, input, time);
+    return state.update('players', players => {
+        return players.update(clientId, player => {
             return player.set('lastShot', 100/1000);
         });
     });
-
-    return state;
 }
 
-export function handleShot(projectiles: SS_LProjectiles, player: SS_MPlayer, input: SS_IPlayerInput, ms: number): SS_LProjectiles {
+export function handleThrow(state: SS_MState, clientId: string, input: SS_IPlayerInput, ms: number): SS_MState {
+    let player = state.get('players').get(clientId);
+    let direction = SS_List<number>(
+        new V(input.mouseX, input.mouseY)
+            .sub(new V(player.get('x'), player.get('y')))
+            .normalize().toArray()
+    );
+
+    let bullet: SS_MThrowable = SS_Map<SS_IThrowable>({
+        type: 'throwable',
+        deceleration: 450,
+        source: clientId,
+        msAlive: 0,
+        msAliveMax: 1.3,
+        x: player.get('x'),
+        y: player.get('y'),
+        velocity: 500,
+        direction: direction,
+    });
+    return state.update('projectiles', projectiles => projectiles.push(bullet));
+}
+
+export function handleShot(state: SS_MState, clientId: string, input: SS_IPlayerInput, ms: number): SS_MState {
+    let player = state.get('players').get(clientId);
     let direction = SS_List<number>(
         new V(input.mouseX, input.mouseY)
             .sub(new V(player.get('x'), player.get('y')))
@@ -96,15 +200,17 @@ export function handleShot(projectiles: SS_LProjectiles, player: SS_MPlayer, inp
     );
 
     let bullet: SS_MBullet = SS_Map<SS_IBullet>({
+        type: 'bullet',
         baseDamage: 15,
-        source: player.get('clientId'),
+        source: clientId,
         msAlive: 0,
+        msAliveMax: 5,
         x: player.get('x'),
         y: player.get('y'),
         velocity: BULLET_VELOCITY,
         direction: direction,
     });
-    return projectiles.push(bullet);
+    return state.update('projectiles', projectiles => projectiles.push(bullet));
 }
 
 export function updatePlayerMovement(state: SS_MState, player: SS_MPlayer, input: SS_IPlayerInput, tickInfo: SS_ITickInfo): SS_MPlayer {
@@ -129,8 +235,8 @@ export function updatePlayerMovement(state: SS_MState, player: SS_MPlayer, input
 
     walls.forEach(iwall => {
         let wall = iwall.toJS();
-        let a = new V(wall[0][0], wall[0][1]);
-        let b = new V(wall[1][0], wall[1][1]);
+        let a = Vector2.from(wall[0]);
+        let b = Vector2.from(wall[1]);
         let length = a.distance(b);
 
         // Vector from origin to desired location
@@ -140,7 +246,7 @@ export function updatePlayerMovement(state: SS_MState, player: SS_MPlayer, input
         let unit = b.clone().sub(a).setLength(1);
 
         // Dot product between player desired destination and the given wall
-        let dp = dot(tv.x, tv.y, unit.x, unit.y);
+        let dp = tv.dot(unit);
 
         // If the dp is too small or too large, then there will be no collision at the players desired location
         if (dp < 0 - playerRadius || dp > length + playerRadius) {}
@@ -179,12 +285,14 @@ export function updatePlayers(state: SS_MState, tickInfo: SS_ITickInfo): SS_MSta
                 if ( ! player ) return player;
 
                 player = player.update('lastShot', lastShot => Math.max(0, lastShot - tickInfo.time));
+                player = player.update('lastThrow', lastThrow => Math.max(0, lastThrow - tickInfo.time));
                 player = updatePlayerMovement(state, player, input, tickInfo);
                 return player;
             });
             return players;
         });
-        if (input.lmb) state = handleLMB(state, input.clientId, input, tickInfo.time);
+        state = handleLMB(state, input.clientId, input, tickInfo.time);
+        state = handleSpace(state, clientId, input, tickInfo.time);
     }
 
     return state;

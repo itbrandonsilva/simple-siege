@@ -27,13 +27,16 @@ store.subscribe(function () {
     });
     state.projectiles.forEach(function (projectile) {
         ctx.beginPath();
-        ctx.fillStyle = 'yellow';
+        if (projectile.type === 'bullet')
+            ctx.fillStyle = 'yellow';
+        else
+            ctx.fillStyle = 'green';
         ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
         ctx.fill();
     });
 });
-var KEY_CODES = [87, 65, 83, 68];
-var KEY_NAMES = ['up', 'left', 'down', 'right'];
+var KEY_CODES = [87, 65, 83, 68, 32];
+var KEY_NAMES = ['up', 'left', 'down', 'right', 'space'];
 var MOUSE_CODES = [0];
 var MOUSE_NAMES = ['lmb'];
 document.addEventListener('keydown', function (e) {

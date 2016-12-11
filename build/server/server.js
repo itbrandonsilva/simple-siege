@@ -33,7 +33,7 @@ var SSServer = (function () {
             _this.store.dispatch(reducer_1.actionTick(ms, _this.inputs, _this.server.getEvents()));
             _this.server.flush();
             ms = now;
-        }, 1000 / 30);
+        }, 1000 / 60);
     };
     return SSServer;
 }());

@@ -73,13 +73,16 @@
 	    });
 	    state.projectiles.forEach(function (projectile) {
 	        ctx.beginPath();
-	        ctx.fillStyle = 'yellow';
+	        if (projectile.type === 'bullet')
+	            ctx.fillStyle = 'yellow';
+	        else
+	            ctx.fillStyle = 'green';
 	        ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
 	        ctx.fill();
 	    });
 	});
-	var KEY_CODES = [87, 65, 83, 68];
-	var KEY_NAMES = ['up', 'left', 'down', 'right'];
+	var KEY_CODES = [87, 65, 83, 68, 32];
+	var KEY_NAMES = ['up', 'left', 'down', 'right', 'space'];
 	var MOUSE_CODES = [0];
 	var MOUSE_NAMES = ['lmb'];
 	document.addEventListener('keydown', function (e) {
@@ -8540,9 +8543,9 @@
 	var immutable_1 = __webpack_require__(56);
 	var vector2_1 = __webpack_require__(57);
 	var V = vector2_1.default;
-	function dot(x1, y1, x2, y2) {
-	    return x1 * x2 + y1 * y2;
-	}
+	//function dot(x1, y1, x2, y2) {
+	//    return x1 * x2 + y1 * y2;  
+	//}
 	exports.reducer = function (state, action) {
 	    switch (action.type) {
 	        case interfaces_1.ACTION_TYPE.TICK:
@@ -8573,7 +8576,7 @@
 	}
 	exports.tick = tick;
 	function playerJoin(state, clientId) {
-	    var player = { clientId: clientId, x: 100, y: 100, lastShot: 0, health: 100 };
+	    var player = { clientId: clientId, x: 100, y: 100, lastShot: 0, lastThrow: 0, health: 100 };
 	    return state.update('players', function (players) { return players.set(clientId, interfaces_1.SS_Map(player)); });
 	}
 	exports.playerJoin = playerJoin;
@@ -8583,50 +8586,157 @@
 	exports.playerLeave = playerLeave;
 	function updateProjectiles(state, tickInfo) {
 	    return state.update('projectiles', function (projectiles) {
-	        return projectiles.map(function (projectile) {
+	        projectiles = projectiles.map(function (projectile, index) {
+	            var final;
+	            var type = projectile.get('type');
+	            var origin = new vector2_1.default(projectile.get('x'), projectile.get('y'));
 	            var direction = vector2_1.default.from(projectile.get('direction').toJS());
-	            direction.log();
-	            var velocity = projectile.get('velocity') * (tickInfo.time);
-	            var vector = direction.setLength(velocity);
-	            return projectile.update('x', function (x) { return x + vector.x; }).update('y', function (y) { return y + vector.y; });
+	            var velocity = projectile.get('velocity');
+	            var travel = velocity * tickInfo.time;
+	            var _loop_1 = function () {
+	                var destination = origin.clone().add(direction.clone().setLength(travel));
+	                var intersections = [];
+	                var wall = void 0;
+	                state.get('world').get('walls').forEach(function (wall) {
+	                    var a = vector2_1.default.from(wall.get(0).toJS());
+	                    var b = vector2_1.default.from(wall.get(1).toJS());
+	                    var intersection = vector2_1.default.segmentsIntersection(origin, destination, a, b);
+	                    if (intersection)
+	                        intersections.push({ p: intersection, w: [a, b] });
+	                });
+	                var shortest = destination.distance(origin);
+	                var intersection = intersections.reduce(function (destination, intersection) {
+	                    var dist = intersection.p.distance(origin);
+	                    if (dist < shortest) {
+	                        shortest = dist;
+	                        return intersection;
+	                    }
+	                    else
+	                        return destination;
+	                }, { p: destination, w: null });
+	                final = intersection.p;
+	                if (!final.eql(destination)) {
+	                    if (type === 'bullet') {
+	                        projectile = projectile.set('destroy', true);
+	                        return "break";
+	                    }
+	                    else {
+	                        //projectile = projectile.set('destroy', true);
+	                        var travelled = origin.distance(final);
+	                        travel -= travelled;
+	                        if (travel <= 0.001) {
+	                            return "break";
+	                        }
+	                        var wallVector = intersection.w[1].clone().sub(intersection.w[0]).normalize();
+	                        var v = origin.clone().sub(intersection.w[0]);
+	                        var dot = v.dot(wallVector);
+	                        wallVector.setLength(dot);
+	                        wallVector.add(intersection.w[0]);
+	                        direction = origin.clone().add(wallVector.clone().sub(origin).mul(2)).sub(final).normalize().rotate180();
+	                        origin = origin.add(final.clone().sub(origin).mul(0.99));
+	                    }
+	                }
+	                else
+	                    return "break";
+	            };
+	            while (true) {
+	                var state_1 = _loop_1();
+	                if (state_1 === "break")
+	                    break;
+	            }
+	            if (type === 'throwable') {
+	                projectile = projectile
+	                    .set('velocity', Math.max(0, velocity - (projectile.get('deceleration') * tickInfo.time)))
+	                    .set('direction', interfaces_1.SS_List(direction.toArray()));
+	            }
+	            return projectile
+	                .update('x', function (x) { return final.x; })
+	                .update('y', function (y) { return final.y; })
+	                .update('msAlive', function (ms) { return ms + tickInfo.time; });
 	        });
+	        projectiles = projectiles.filter(function (projectile) {
+	            if (projectile.get('destroy'))
+	                return false;
+	            var x = projectile.get('x');
+	            if (x < 0 || x > 2000)
+	                return false;
+	            var y = projectile.get('y');
+	            if (y < 0 || y > 2000)
+	                return false;
+	            var ms = projectile.get('msAlive');
+	            var max = projectile.get('msAliveMax');
+	            if (ms > max)
+	                return false;
+	            return true;
+	        });
+	        return projectiles;
 	    });
 	}
 	exports.updateProjectiles = updateProjectiles;
-	function handleLMB(state, clientId, input, time) {
-	    var bulletWasFired = false;
+	function handleSpace(state, clientId, input, time) {
+	    if (!input.space)
+	        return state;
 	    var player = state.get('players').get(clientId);
-	    state = state.update('projectiles', function (projectiles) {
-	        var lastShot = player.get('lastShot');
-	        if (lastShot === 0) {
-	            bulletWasFired = true;
-	            projectiles = handleShot(projectiles, player, input, time);
-	        }
-	        return projectiles;
-	    });
-	    if (bulletWasFired)
-	        state = state.update('players', function (players) {
-	            return players.update(player.get('clientId'), function (player) {
-	                return player.set('lastShot', 100 / 1000);
-	            });
+	    if (player.get('lastThrow') !== 0)
+	        return state;
+	    state = handleThrow(state, clientId, input, time);
+	    return state.update('players', function (players) {
+	        return players.update(clientId, function (player) {
+	            return player.set('lastThrow', interfaces_1.THROW_COOLDOWN);
 	        });
-	    return state;
+	    });
+	}
+	exports.handleSpace = handleSpace;
+	function handleLMB(state, clientId, input, time) {
+	    if (!input.lmb)
+	        return state;
+	    var player = state.get('players').get(clientId);
+	    if (player.get('lastShot') !== 0)
+	        return state;
+	    state = handleShot(state, clientId, input, time);
+	    return state.update('players', function (players) {
+	        return players.update(clientId, function (player) {
+	            return player.set('lastShot', 100 / 1000);
+	        });
+	    });
 	}
 	exports.handleLMB = handleLMB;
-	function handleShot(projectiles, player, input, ms) {
+	function handleThrow(state, clientId, input, ms) {
+	    var player = state.get('players').get(clientId);
 	    var direction = interfaces_1.SS_List(new V(input.mouseX, input.mouseY)
 	        .sub(new V(player.get('x'), player.get('y')))
 	        .normalize().toArray());
 	    var bullet = interfaces_1.SS_Map({
-	        baseDamage: 15,
-	        source: player.get('clientId'),
+	        type: 'throwable',
+	        deceleration: 450,
+	        source: clientId,
 	        msAlive: 0,
+	        msAliveMax: 1.3,
+	        x: player.get('x'),
+	        y: player.get('y'),
+	        velocity: 500,
+	        direction: direction,
+	    });
+	    return state.update('projectiles', function (projectiles) { return projectiles.push(bullet); });
+	}
+	exports.handleThrow = handleThrow;
+	function handleShot(state, clientId, input, ms) {
+	    var player = state.get('players').get(clientId);
+	    var direction = interfaces_1.SS_List(new V(input.mouseX, input.mouseY)
+	        .sub(new V(player.get('x'), player.get('y')))
+	        .normalize().toArray());
+	    var bullet = interfaces_1.SS_Map({
+	        type: 'bullet',
+	        baseDamage: 15,
+	        source: clientId,
+	        msAlive: 0,
+	        msAliveMax: 5,
 	        x: player.get('x'),
 	        y: player.get('y'),
 	        velocity: interfaces_1.BULLET_VELOCITY,
 	        direction: direction,
 	    });
-	    return projectiles.push(bullet);
+	    return state.update('projectiles', function (projectiles) { return projectiles.push(bullet); });
 	}
 	exports.handleShot = handleShot;
 	function updatePlayerMovement(state, player, input, tickInfo) {
@@ -8649,15 +8759,15 @@
 	    var walls = world.get('walls');
 	    walls.forEach(function (iwall) {
 	        var wall = iwall.toJS();
-	        var a = new V(wall[0][0], wall[0][1]);
-	        var b = new V(wall[1][0], wall[1][1]);
+	        var a = vector2_1.default.from(wall[0]);
+	        var b = vector2_1.default.from(wall[1]);
 	        var length = a.distance(b);
 	        // Vector from origin to desired location
 	        var tv = new V(nx, ny).sub(a);
 	        // Unit vector of the wall
 	        var unit = b.clone().sub(a).setLength(1);
 	        // Dot product between player desired destination and the given wall
-	        var dp = dot(tv.x, tv.y, unit.x, unit.y);
+	        var dp = tv.dot(unit);
 	        // If the dp is too small or too large, then there will be no collision at the players desired location
 	        if (dp < 0 - playerRadius || dp > length + playerRadius) { }
 	        else {
@@ -8683,23 +8793,24 @@
 	exports.updatePlayerMovement = updatePlayerMovement;
 	function updatePlayers(state, tickInfo) {
 	    var inputs = tickInfo.inputs;
-	    var _loop_1 = function (clientId) {
+	    var _loop_2 = function (clientId) {
 	        var input = inputs[clientId];
 	        state = state.update('players', function (players) {
 	            players = players.update(clientId, function (player) {
 	                if (!player)
 	                    return player;
 	                player = player.update('lastShot', function (lastShot) { return Math.max(0, lastShot - tickInfo.time); });
+	                player = player.update('lastThrow', function (lastThrow) { return Math.max(0, lastThrow - tickInfo.time); });
 	                player = updatePlayerMovement(state, player, input, tickInfo);
 	                return player;
 	            });
 	            return players;
 	        });
-	        if (input.lmb)
-	            state = handleLMB(state, input.clientId, input, tickInfo.time);
+	        state = handleLMB(state, input.clientId, input, tickInfo.time);
+	        state = handleSpace(state, clientId, input, tickInfo.time);
 	    };
 	    for (var clientId in inputs) {
-	        _loop_1(clientId);
+	        _loop_2(clientId);
 	    }
 	    return state;
 	}
@@ -8728,9 +8839,11 @@
 	;
 	;
 	;
+	;
 	exports.PLAYER_RADIUS = 20;
 	exports.MOVEMENT_SPEED = 130;
 	exports.BULLET_VELOCITY = 1500;
+	exports.THROW_COOLDOWN = 1.0;
 	var ACTION_TYPE;
 	(function (ACTION_TYPE) {
 	    ACTION_TYPE[ACTION_TYPE["INIT_STATE"] = 0] = "INIT_STATE";
@@ -8744,8 +8857,12 @@
 	    world: SS_Map({
 	        walls: SS_List([
 	            SS_List([
-	                SS_List([100, 200]),
-	                SS_List([400, 200])
+	                SS_List([200, 150]),
+	                SS_List([500, 150])
+	            ]),
+	            SS_List([
+	                SS_List([200, 400]),
+	                SS_List([200, 150])
 	            ])
 	        ])
 	    }),

@@ -6,17 +6,22 @@ export interface SS_Map<I> extends Map<any, any> {
     _forceIncompatibilityWithOtherSS_MapsByUtilizingTheGenericParam?: I;
 
     get<K extends keyof I, T extends I[K]>(key: K, notSetValue?: T): T;
-    set<K extends keyof I, T extends I[K]>(key: K, data: T): SS_Map<I>;
+    set<K extends keyof I, T extends I[K]>(key: K, value: T): SS_Map<I>;
     merge(data: SS_Map<I>): SS_Map<I>;
     delete<K extends keyof I>(key: K): SS_Map<I>;
     remove<K extends keyof I>(key: K): SS_Map<I>;
     update(updater: (value: SS_Map<I>) => SS_Map<I>): SS_Map<I>;
-    update<K extends keyof I, T extends I[K]>(key: K, updater: (value: T) => T): SS_Map<I>;
+    update<K extends keyof I, T extends I[K]>(key: K, updater: (value: T) => T): SS_Map<I>;  
 }
 
 export interface SS_List<I> extends List<I> {
-    map(iterator: (element: I) => I): SS_List<I>;
+    set(index: number, value: I): SS_List<I>;
+    get(index: number): I;
+    map<M>(mapper: (value: I, key: number, iter: SS_List<I>) => M, context?: any): SS_List<M>;
     push(data: I): SS_List<I>;
+    filter(predicate: (value: I, key?: number, iter?: SS_List<I>) => boolean, context?: any): SS_List<I>;
+    forEach(sideEffect: (value: I, key?: number, iter?: SS_List<I>) => any, context?: any): number;
+    reduce<R>(reducer: (reduction: R, value: I, key: number, iter: SS_List<I>) => R, initialReduction?: R, context?: any): R
 }
 
 export function SS_Map<T>(data: T): SS_Map<T> {
@@ -46,13 +51,17 @@ export interface SS_IPlayer {
     x: number;
     y: number;
     lastShot: number;
+    lastThrow: number;
 }
 
 export interface SS_MProjectile extends SS_Map<SS_IProjectile> {}
 export interface SS_LProjectiles extends SS_List<SS_MProjectile> {}
 export interface SS_IProjectile {
+    type: string;
+    destroy?: boolean;
     source: string;
     msAlive: number;
+    msAliveMax: number;
     x: number;
     y: number;
     velocity: number;
@@ -62,13 +71,15 @@ export interface SS_MBullet extends SS_Map<SS_IBullet> {}
 export interface SS_IBullet extends SS_IProjectile {
     baseDamage: number;
 }
-export interface SS_IThrowableProjectile extends SS_MProjectile {
-
+export interface SS_MThrowable extends SS_Map<SS_IThrowable> {};
+export interface SS_IThrowable extends SS_IProjectile {
+    deceleration: number;
 }
 
 export const PLAYER_RADIUS = 20;
 export const MOVEMENT_SPEED = 130;
 export const BULLET_VELOCITY = 1500;
+export const THROW_COOLDOWN = 1.0;
 export enum ACTION_TYPE {
     INIT_STATE,
     TICK
@@ -88,6 +99,7 @@ export interface SS_IPlayerInput {
     mouseX?: number;
     mouseY?: number;
     lmb?: boolean;
+    space?: boolean;
 }
 
 export interface SS_ITickInfo {
@@ -120,8 +132,12 @@ export const DEFAULT_STATE: SS_MState = SS_Map<SS_IState>({
     world: SS_Map<SS_IWorld>({
         walls: SS_List<SS_LWall>([
             SS_List<SS_LVector>([
-                SS_List<number>([100, 200]),
-                SS_List<number>([400, 200])
+                SS_List<number>([200, 150]),
+                SS_List<number>([500, 150])
+            ]),
+            SS_List<SS_LVector>([
+                SS_List<number>([200, 400]),
+                SS_List<number>([200, 150])
             ])
         ])
     }),

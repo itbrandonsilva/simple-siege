@@ -39,6 +39,6 @@ export class SSServer {
             this.store.dispatch(actionTick(ms, this.inputs, this.server.getEvents()));
             this.server.flush();
             ms = now;
-        }, 1000/30);
+        }, 1000/60);
     }
 }

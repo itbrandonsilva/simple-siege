@@ -1,3 +1,4 @@
+import { SS_IProjectile } from './../state/interfaces';
 import { StateClient } from 'redux-gateway/build/client';
 import * as Rx from 'rxjs';
 import { reducer } from '../state/reducer';
@@ -38,16 +39,17 @@ store.subscribe(() => {
         ctx.stroke();
     });
 
-    state.projectiles.forEach(projectile => {
+    state.projectiles.forEach((projectile: SS_IProjectile) => {
         ctx.beginPath();
-        ctx.fillStyle = 'yellow';
+        if (projectile.type === 'bullet') ctx.fillStyle = 'yellow';
+        else ctx.fillStyle = 'green';
         ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI*2);
         ctx.fill();
     });
 });
 
-const KEY_CODES = [87, 65, 83, 68];
-const KEY_NAMES = ['up', 'left', 'down', 'right'];
+const KEY_CODES = [87, 65, 83, 68, 32];
+const KEY_NAMES = ['up', 'left', 'down', 'right', 'space'];
 
 const MOUSE_CODES = [0];
 const MOUSE_NAMES = ['lmb'];
