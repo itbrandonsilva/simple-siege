@@ -2,6 +2,7 @@
   "name": "simple-siege",
   "dependencies": {},
   "globalDependencies": {
-    "es6-shim": "registry:dt/es6-shim#0.31.2+20160602141504"
+    "es6-shim": "registry:dt/es6-shim#0.31.2+20160602141504",
+    "pixi.js": "registry:dt/pixi.js#3.0.9+20161102214427"
   }
 }

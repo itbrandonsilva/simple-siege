@@ -18,6 +18,7 @@
   "homepage": "https://github.com/itbrandonsilva/simple-siege#readme",
   "dependencies": {
     "immutable": "^3.8.1",
+    "pixi.js": "^4.2.3",
     "redux": "^3.6.0",
     "redux-gateway": "github:itbrandonsilva/redux-gateway",
     "rxjs": "^5.0.0-rc.5",

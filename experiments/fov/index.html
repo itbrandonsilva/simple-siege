@@ -1,0 +1,60 @@
+<body style="background-image: url('bg.png');">
+    <div id="game"></div>
+</body>
+<!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" /> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.2.3/pixi.js"></script>
+
+<script id="shader" type="shader">
+precision mediump float;
+uniform vec2 direction;
+uniform vec2 position;
+uniform vec2 fovRoot;
+uniform float aoc;
+uniform float fov;
+uniform float radius;
+
+const float PI = 3.14159265359;
+
+float angleBetween(vec2 a, vec2 b) {
+    float result = atan(a.y, a.x) - atan(b.y, b.x);
+    result = abs(result);
+    if (result > PI) result = (PI*2.0) - result;
+    return result;
+}
+
+void main() 
+{
+    fovRoot; direction;
+    vec2 relative = gl_FragCoord.xy - fovRoot;
+
+    // Render character blue
+    float distanceFromPosition = length(gl_FragCoord.xy - position);
+    if (distanceFromPosition < radius) {
+        gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
+        return;
+    }
+
+    // Render a red dot at the center of the screen
+    float d = length( vec2(500, 500) - gl_FragCoord.xy );
+    if (d < 5.0) {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        return;
+    }
+
+    // Beyond 90 degrees, there is no vision
+    vec2 rp = gl_FragCoord.xy - position;
+    float r1 = angleBetween(direction, rp);
+
+    //float distanceFromOrigin = length(gl_FragCoord.xy - origin);
+
+    float result = angleBetween(direction, relative);
+
+    vec4 texture = vec4(0.0, 0.0, 0.0, 0.0);
+    if (abs(result) > fov) texture.w = 1.0;
+    // Do not allow vision past the fov's "angle of contact"
+    else if (abs(r1) > aoc) texture.w = 1.0;
+
+    gl_FragColor = texture;
+}
+</script>
+<script src="build/bundle.js"></script>
