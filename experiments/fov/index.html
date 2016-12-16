@@ -5,6 +5,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.2.3/pixi.js"></script>
 
 <script id="shader" type="shader">
+
+varying vec2 vTextureCoord;
+
 precision mediump float;
 uniform vec2 direction;
 uniform vec2 position;
@@ -12,6 +15,7 @@ uniform vec2 fovRoot;
 uniform float aoc;
 uniform float fov;
 uniform float radius;
+uniform sampler2D uSampler;
 
 const float PI = 3.14159265359;
 
@@ -26,6 +30,9 @@ void main()
 {
     fovRoot; direction;
     vec2 relative = gl_FragCoord.xy - fovRoot;
+
+    vec4 color = texture2D(uSampler, vTextureCoord);
+    gl_FragColor = color;
 
     // Render character blue
     float distanceFromPosition = length(gl_FragCoord.xy - position);
@@ -49,12 +56,11 @@ void main()
 
     float result = angleBetween(direction, relative);
 
-    vec4 texture = vec4(0.0, 0.0, 0.0, 0.0);
-    if (abs(result) > fov) texture.w = 1.0;
+    vec4 texture = vec4(1.0, 1.0, 1.0, 1.0);
+    // Do not allow vision past the fov
+    if (abs(result) > fov) gl_FragColor = texture;
     // Do not allow vision past the fov's "angle of contact"
-    else if (abs(r1) > aoc) texture.w = 1.0;
-
-    gl_FragColor = texture;
+    else if (abs(r1) > aoc) gl_FragColor = texture;
 }
 </script>
 <script src="build/bundle.js"></script>

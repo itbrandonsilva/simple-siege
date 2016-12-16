@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import Vector2 from 'vector2';
+const V = Vector2;
 
 const renderer = new PIXI.WebGLRenderer(1000, 1000, {antialias: true, transparent: true});
 const stage = new PIXI.Container();
@@ -17,93 +18,14 @@ stage.addChild(visionMask);
 //stage.mask = visionMask;
 
 let shaderCode = document.getElementById('shader').innerHTML;
-let position = new Vector2(100, 700);
+let position = new Vector2(900, 200);
 let positionConverted = new Vector2(100, 1000-100);
 let mousePosition = new Vector2(500, 500);
 let direction = mousePosition.clone().sub(position);
 let fovRoot = new Vector2(50, 50);
 
-let corners: Vector2[] = [
-    new Vector2(0   , 0   ),
-    new Vector2(1000, 0   ),
-    new Vector2(1000, 1000),
-    new Vector2(0   , 1000),
-
-    new Vector2(300, 200),
-    new Vector2(600, 200),
-    new Vector2(600, 600),
-    new Vector2(300, 600),
-];
-
-let _walls = [
-    [0, 1], [1, 2], [2, 3], [3, 0],
-    [4, 5], [5, 6], [6, 7], [7, 4],
-];
-
-class Walls {
-    private index: {[vi: number]: Vector2[]} = {};
-    constructor(private _corners: Vector2[], private _walls: number[][]) {
-        this._walls.forEach((wall, wi) => {
-            wall.forEach((vi, i) => {
-                let refs = this.index[vi] = this.index[vi] || [];
-                for (var x = 0; x < wall.length-1; ++x) {
-                    let n = (i+1+x) % wall.length;
-                    refs.push(this._corners[wall[n]]);
-                }
-            });
-        });
-
-        //console.log(JSON.stringify(this.index, null, 2));
-    }
-
-    //each(cb: (wall: any, refs: any) => any) {
-        //this.walls.forEach((wall, wi) => cb(wall, this.refs));
-    //}
-
-    each(cb: (w: Vector2[], wi: number, vis: number[]) => void) {
-        this._walls.forEach((wall, wi) => {
-            let points = wall.map(vi => {
-                return this._corners[vi].clone();
-            });
-            cb(points, wi, wall);
-        });
-    }
-
-    sortedPoints(origin: Vector2) {
-        let mapped = this._corners.map((c, i) => {
-            return {p: c, i: i};
-        });
-        mapped.sort((a, b) => {
-            let ac = a.p.clone();
-            let bc = b.p.clone();
-            ac.sub(origin);
-            bc.sub(origin);
-
-            let aa = angle(ac);
-            let bb = angle(bc);
-            //return b.angle() - a.angle();
-            //angle(a) === angle(b)
-            if (aa === bb) {
-
-                return -1;
-            }
-            return aa - bb;
-
-            let refs = this.refs(vi);
-            //let refsMapped = refs.map(vi => this._corners[vi]);
-            cb(point.clone(), refs, vi);
-        });
-    }
-
-    refs(vi: number) {
-        return this.index[vi];
-    }
-}
-
-let walls = new Walls(corners, _walls);
-
 let radius = 40;
-let fov = (30 * (Math.PI/180))/2;;
+let fov = (70 * (Math.PI/180))/2;;
 let aoc = Math.PI;
 let simpleShader = new PIXI.Filter('', shaderCode);
 simpleShader.uniforms.radius = radius;
@@ -115,7 +37,7 @@ simpleShader.uniforms.fovRoot = new Float32Array(fovRoot.toArray());
 //stage.filters = [simpleShader, new PIXI.filters.FXAAFilter()];
 //let fxaa = new PIXI.filters.FXAAFilter();
 
-//stage.filters = [simpleShader];
+stage.filters = [simpleShader];
 
 function updateUniforms() {
     let finalAngle = Math.PI - (fov + (Math.PI/2));
@@ -129,24 +51,19 @@ function updateUniforms() {
     simpleShader.uniforms.aoc = aoc;
 }
 
-document.addEventListener('keydown', e => {
-    switch (e.key) {
+let keyState: any = {};
+function handleKey(key: string, down: boolean) {
+    switch (key) {
         case 'w':
-            position.addY(-100); break;
         case 'a':
-            position.addX(-100); break;
         case 's':
-            position.addY( 100); break;
         case 'd':
-            position.addX( 100); break;
+            keyState[key] = down;
     }
+}
 
-    positionConverted.read(position);
-    positionConverted.y = 1000 - positionConverted.y;
-
-    simpleShader.uniforms.position = new Float32Array(positionConverted.toArray());
-    updateUniforms();
-});
+document.addEventListener('keydown', (e) => handleKey(e.key, true));
+document.addEventListener('keyup', (e) => handleKey(e.key, false));
 
 document.addEventListener('mousemove', (e) => {
     mousePosition = new Vector2(e.clientX, 1000-e.clientY);
@@ -157,158 +74,239 @@ function angle(v: Vector2): number {
     return Math.atan2(v.y, v.x) * (180/Math.PI); 
 }
 
+type MIntersection = {wall: Wall, point: Vector2, isEdge?: boolean, left?: boolean, right?: boolean};
+
+function buildIntersection(intersection: Vector2, wall: Wall, position: Vector2, direction: Vector2, edge: Corner): MIntersection {
+    let left = false;
+    let right = false;
+    if (edge) edge.neighbors.forEach((p: Corner) => {
+        if ( p.vector.eql(intersection) ) return;
+        let posToCorner = p.vector.clone().subtract(position);
+        let angle = angleBetween(posToCorner, direction);
+        if (angle < 0) left = true;
+        else if(angle > 0) right = true;
+    });
+    return {wall, point: intersection, isEdge: !!edge, left, right};
+}
+
+
+let corners: Vector2[] = [
+    new Vector2(0   , 0   ),
+    new Vector2(1000, 0   ),
+    new Vector2(1000, 1000),
+    new Vector2(0   , 1000),
+
+    new Vector2(200, 200),
+    new Vector2(400, 200),
+    new Vector2(400, 400),
+    new Vector2(200, 400),
+
+    new Vector2(600, 500),
+    new Vector2(700, 500),
+    new Vector2(700, 600),
+    new Vector2(600, 600)
+];
+
+let _walls = [
+    [0, 1], [1, 2], [2, 3], [3, 0],
+    [4, 5], [5, 6], [6, 7], [7, 4],
+    [8, 9], [9, 10], [10, 11], [11, 8],
+];
+
+interface Corner {
+    index: number;
+    readonly vector: Vector2;
+    walls: Wall[];
+    neighbors: Corner[];
+}
+
+interface Wall {
+    index: number;
+    corners: Corner[];
+}
+
+class Walls {
+    private _corners: Corner[];
+    private _walls: Wall[];
+
+    constructor(corners: Vector2[], walls: number[][]) {
+        this._corners = corners.map((corner, idx) => {
+            let mapped: Corner = {
+                index: idx,
+                vector: corner.clone(),
+                walls: [],
+                neighbors: []
+            };
+            return mapped;
+        });
+
+        this._walls = walls.map((wall, idx) => {
+            let c1 = this._corners[wall[0]];
+            let c2 = this._corners[wall[1]];
+
+            let mapped: Wall = {
+                index: idx,
+                corners: [c1, c2]
+            };
+
+            c1.walls.push(mapped);
+            c2.walls.push(mapped);
+
+            c1.neighbors.push(c2);
+            c2.neighbors.push(c1);
+            return mapped;
+        });
+    }
+
+    each(cb: (wall: Wall) => void) {
+        this._walls.forEach(cb);
+    }
+
+    points(origin: Vector2) {
+        let sliced = this._corners.slice();
+        sliced.sort((a, b) => {
+            let ac = a.vector.clone();
+            let bc = b.vector.clone();
+            ac.sub(origin);
+            bc.sub(origin);
+
+            let aa = angle(ac);
+            let bb = angle(bc);
+            return aa - bb;
+        });
+
+        return sliced;
+    }
+}
+
+let walls = new Walls(corners, _walls);
+
+let ms = new Date().getTime();
 function animate() {
+    let interp = new Date().getTime() - ms;
+    ms = new Date().getTime();
 
-    let points: Vector2[] = [];
-    let triangles = [];
-    walls.points((point, refs) => {
-        //points.forEach(point => {
-            //console.log('------------------');
-            //point.log();
+    let speed = 500 * (interp/1000);
 
-            visionMask.moveTo(position.x, position.y);
-            let direction = point.clone().sub(position);
-            let end = direction.clone().setLength(99999).add(position);
+    if (keyState.a) position.addX(-speed);
+    if (keyState.d) position.addX(speed);
+    if (keyState.w) position.addY(-speed);
+    if (keyState.s) position.addY(speed);
 
-            visionMask.lineStyle(8, 0xffffff, 1.0);
-            visionMask.lineTo(end.x, end.y);
-            direction.normalize();
+    positionConverted.read(position);
+    positionConverted.y = 1000 - positionConverted.y;
 
-            let corners = {};
+    simpleShader.uniforms.position = new Float32Array(positionConverted.toArray());
+    updateUniforms();
 
-            let intersections: Vector2[] = [];
+    visionMask.clear();
+
+    let finalP: Vector2[] = [];
+
+    let points = walls.points(position);
+    points.forEach((po) => {
+        let point = po.vector;
+        let direction = point.clone().sub(position);
+        direction.normalize();
+        if (direction.eql(new Vector2(0, 0))) return;
+
+
+        let end = direction.clone().setLength(99999).add(position);
+
+        let corners = {};
+
+        let intersections: MIntersection[] = [];
+
+
+            intersections.push(buildIntersection(po.vector, null, position, direction, po));
             walls.each(wall => {
-                visionMask.lineStyle(2, 0x00ff00, 1.0);
-                visionMask.moveTo(wall[0].x, wall[0].y);
-                visionMask.lineTo(wall[1].x, wall[1].y);
+                let intersection = Vector2.segmentsIntersection(position, end, wall.corners[0].vector, wall.corners[1].vector) 
+                                || Vector2.segmentsIntersection(position, end, wall.corners[1].vector, wall.corners[0].vector) 
 
-                //if ( wallCheck === wall ) return;
-                let intersection = Vector2.segmentsIntersection(position, end, wall[0], wall[1]) || Vector2.segmentsIntersection(position, end, wall[1], wall[0]);
-                //console.log('-----');
-                //wall[0].log();
-                //wall[1].log();
                 if (intersection) {
-                    //console.log("INT"); intersection.log();
                     intersection.round();
-                    //intersection.log();
-                }
-                //if ( intersection && !intersection.eql(wallCheck[0]) && !intersection.eql(wallCheck[1]) ) return true;
+                    if (intersection.eql(po.vector)) return;
 
-                if (intersection) {
-                    if (point.eql(intersection)) {
-                        //console.log('SIMILAR');
-                        let left = false;
-                        let right = false;
-                        refs.forEach(ref => {
-                            let normd = ref.clone().subtract(position).normalize();
-                            let angle = angleBetween(normd, direction);
-                            /*console.log('--');
-                            point.log();
-                            ref.log();
-                            direction.log();
-                            normd.log();
-                            console.log(angle);*/
-                            if (angle <= 0) left = true;
-                            else if(angle > 0) right = true;
-                        });
-                        //console.log(left, right);
+                    let left = false;
+                    let right = false;
 
-                        if ( left && right ) intersections.push(intersection);
-                        else {
-                            corners[points.length] = true;
-                            (<any>intersection).EDGE = true;
-                            points.push(intersection);
-                        }
-                    } else intersections.push(intersection);
+                    let edge;
+                    if (intersection.eql(wall.corners[0].vector)) edge = wall.corners[0];
+                    else if (intersection.eql(wall.corners[1].vector)) edge = wall.corners[1];
+
+                    let metaintersection = buildIntersection(intersection, wall, position, direction, edge);
+                    intersections.push(metaintersection);
                 }
-                //intersections.push(intersection);
-                //points.push(wall[0]);
             });
 
-            if ( ! intersections.length ) return points.push(point);
+            intersections.sort((a, b) => {
+                return a.point.distance(position) - b.point.distance(position);
+            });
+ 
+            let left = false;
+            let right = false;
 
-            let d;
-            let int;
-            intersections.forEach(i => {
-                if ( int ) {
-                    let cd = i.distance(position);
-                    if (cd < d) {
-                        d = cd;
-                        int = i;
+            let edge;
+            let poi: {wall: Wall, point: Vector2, corner?: Corner, isEdge?: boolean, left?: boolean, right?: boolean};
+            intersections.some(i => {
+                if ( ! i.isEdge || (i.left && i.right)) {
+                    poi = i;
+                    return true;
+                }
+
+                if ( ! i.left && ! i.right ) return false;
+
+                if (i.left) {
+                    if (right) {
+                        poi = i;
+                        return true;
+                    } else if (left) {
+                        edge = edge || i;
+                    } else {
+                        edge = edge || i;
+                        left = true;
                     }
                 }
-                else {
-                    d = i.distance(position);
-                    int = i;
+
+                if (i.right) {
+                    if (left) {
+                        poi = i;
+                        return true;
+                    } else if (right) {
+                        edge = edge || i;
+                    } else {
+                        edge = edge || i;
+                        right = true;
+                    }
                 }
+
+                return false;
             });
 
-            if ( int ) points.push(int);
-        //});
-        //});
+            if ( ! edge ) finalP.push(poi.point);
+            else {
+                if (right) {
+                    finalP.push(poi.point);
+                    finalP.push(edge.point);
+                } else {
+                    finalP.push(edge.point);
+                    finalP.push(poi.point);
+                }
+            }
     });
 
-    /*points.sort((a, b) => {
-        let ac = a.clone().sub(position);
-        let bc = b.clone().sub(position);
-        let aa = angle(ac);
-        let bb = angle(bc);
-        //return b.angle() - a.angle();
-        //angle(a) === angle(b)
-        if (aa === bb) {
+    let pos = new PIXI.Point(position.x, position.y);
+    finalP.forEach((v, i) => {
+        let v2 = new PIXI.Point(v.x, v.y);
+        let _v = finalP[(i+1)%finalP.length];
+        let v3 = new PIXI.Point(_v.x, _v.y);
 
-            return -1;
-        }
-        return aa - bb;
-        //return angleBetween(a, position) - angleBetween(b, position);
-    });*/
-
-    points = points.filter((p, i) => {
-        //let last = points[i - 1];
-        let slice = points.slice(i+1);
-        let dup = slice.some((p2, i2) => {
-            if (p2.eql(p)) return true;
-        });
-        if (dup) return false;
-        return true;
-    });
-
-    points.forEach(p => {
-        p = p.clone().sub(position);
-        //console.log(angle(p));
-    });
-    //console.log(JSON.stringify(points, null, 2));
-
-    points.forEach(p => {
-        visionMask.beginFill(0x0000ff);
-        visionMask.drawCircle(p.x, p.y, 10);
+        visionMask.beginFill(0x000000);
+        visionMask.drawPolygon([pos, v2, v3]);
         visionMask.endFill();
-    })
-
-    let pp = points.map(p => {
-        return new PIXI.Point(p.x, p.y);
     });
 
-
-    //visionMask.clear();
-    visionMask.lineStyle(3, 0x000000, 1.0);
-    pp.forEach((p, i) => {
-        //if (i === pp.length-1) return;
-        //if (i > 0) return;
-        let pos = new PIXI.Point(position.x, position.y);
-        let ppp: PIXI.Point[] = [ pos, p, pp[(i+1)%pp.length] ];
-        visionMask.moveTo(ppp[0].x, ppp[0].y);
-        visionMask.lineTo(ppp[1].x, ppp[1].y);
-        visionMask.lineTo(ppp[2].x, ppp[2].y);
-        visionMask.lineTo(ppp[0].x, ppp[0].y);
-        //console.log(ppp);
-        //visionMask.drawPolygon(ppp);
-    });
-    visionMask.endFill();
-
-    //position.log();
-
-    //requestAnimationFrame(animate);
+    requestAnimationFrame(animate);
     renderer.render(stage);
 }
 animate();
