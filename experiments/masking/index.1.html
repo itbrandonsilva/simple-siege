@@ -1,0 +1,83 @@
+<body>
+    <div id="game"></div>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.2.3/pixi.min.js"></script>
+<script>
+
+class Boss {
+    constructor() {
+        this.renderer = new PIXI.WebGLRenderer(1000, 1000, {backgroundColor: '0x0000ff'});
+        this.stage = new PIXI.Container();
+        document.getElementById('game').appendChild(this.renderer.view);
+      //$(this.renderer.view).appendTo(".boss")
+    
+var background = new PIXI.Graphics();
+background.beginFill(0xff0000);
+background.drawRect(0, 0, 1000, 1000);
+background.endFill();
+this.stage.addChild(background)
+
+/*
+      let box = new PIXI.Graphics();
+      //box.boundsPadding = 0
+      box.beginFill(0x00ff00, 1)
+      box.drawCircle(0, 0, 200)
+      //box.updateBounds()
+      box.endFill()
+      box.x = 300;
+      box.y = 300;
+      
+      this.stage.addChild(box);
+      
+    
+      let texture = box.generateTexture()
+    
+      let sprite = new PIXI.Sprite(texture)
+      //sprite.anchor.x = 0.5
+      //sprite.anchor.y = 0.5
+      //sprite.x = 300;
+      //sprite.y = 300;
+      //sprite.x = 10;
+      //sprite.y = 10;
+    
+      //this.stage.addChild(sprite);
+      */
+      
+        let sprite = PIXI.Sprite.fromImage('alpha.png');
+        sprite.anchor.x = 0.5;
+        sprite.anchor.y = 0.5;
+        document.addEventListener('mousemove', (e) => {
+            sprite.x = e.clientX;
+            sprite.y = e.clientY;
+        });
+        this.stage.addChild(sprite);
+        this.stage.mask = sprite;
+        //dig.mask = sprite
+
+        let dig = PIXI.Sprite.fromImage('dig.png');
+        dig.width = 500;
+        dig.height = 500;
+        this.stage.addChild(dig);
+        //dig.mask = sprite;
+
+      //dig.position.x = 100;
+      //dig.position.y = 100;
+        
+        //sprite.width = 200;
+        //sprite.x = 50;
+        //sprite.y = -512;
+        setTimeout(() => {
+            console.log('"!!"');
+            requestAnimationFrame(this.animate.bind(this));
+        }, 1500);
+    }
+
+    animate() {
+        requestAnimationFrame(this.animate.bind(this));
+        this.renderer.render(this.stage);
+    }
+}
+      
+let boss = new Boss()
+
+</script>

@@ -14,6 +14,9 @@ export class SSServer {
 
         this.server.registerEventHandler((event) => {
             switch(event.type) {
+                case 'CLIENT_CONNECT':
+                    console.log('Client connected...');
+                    break;
                 case 'CLIENT_DISCONNECT':
                     delete this.inputs[event.clientId];
                     break;

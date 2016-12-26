@@ -1,0 +1,124 @@
+<body>
+    <div id="game"></div>
+</body>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.2.3/pixi.js"></script>
+<script id="shader2" type="shader">
+
+precision mediump float;
+uniform float mouseX;
+uniform float mouseY;
+
+//void mainImage( out vec4 fragColor, in vec2 fragCoord )
+void main()
+{
+    vec2 lightPosition = vec2(mouseX, mouseY);
+    float radius = 100.0;
+
+    float dist = length( lightPosition - gl_FragCoord.xy );
+
+    if (dist > radius) {
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+
+    float quadIntensity = dist / 100.0;
+    vec4 texture = vec4(0.0, 0.0, 0.0, quadIntensity);
+    gl_FragColor = texture;
+}
+
+</script>
+<script id="shader2" type="shader">
+
+precision mediump float;
+uniform vec2 direction;
+uniform vec2 position;
+uniform vec2 fovRoot;
+uniform float angle;
+uniform float radius;
+
+void main() 
+{
+    const float PI = 3.14159265359;
+
+    float distanceFromPosition = length(gl_FragCoord.xy - position);
+    if (distanceFromPosition < radius) {
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+        return;
+    }
+
+    float d = length( vec2(500, 500) - gl_FragCoord.xy );
+    if (d < 5.0) {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        return;
+    }
+
+    //float distanceFromOrigin = length(gl_FragCoord.xy - origin);
+
+    vec2 direction = normalize(vec2(500, 500) - position);
+    vec2 relative = gl_FragCoord.xy - position;
+
+    float result = atan(direction.y, direction.x) - atan(relative.y, relative.x);
+    result = abs(result);
+    if (result > PI) result = (PI*2.0) - result;
+
+    vec4 texture = vec4(0.0, 0.0, 0.0, 0.0);
+    if (abs(result) > angle) texture.w = 1.0;
+
+    gl_FragColor = texture;
+}
+
+</script>
+<script>
+
+class Boss {
+    constructor() {
+        ////this.uniforms = {
+        //    mouseX: {type: 'f', value: 200},
+        //    mouseY: {type: 'f', value: 200}
+        //};
+
+
+        this.renderer = new PIXI.WebGLRenderer(1000, 1000, {backgroundColor: '0xffff00'});
+        this.stage = new PIXI.Container();
+        document.getElementById('game').appendChild(this.renderer.view);
+      //$(this.renderer.view).appendTo(".boss")
+    
+var background = new PIXI.Graphics();
+background.beginFill(0xff0000);
+background.drawRect(0, 0, 1000, 1000);
+background.endFill();
+this.stage.addChild(background);
+
+
+
+
+
+
+
+let shaderCode = document.getElementById('shader2').innerHTML;
+let simpleShader = new PIXI.Filter('', shaderCode);
+
+simpleShader.uniforms.radius = 20;
+simpleShader.uniforms.angle = (30 * (Math.PI/180))/2;
+//console.log(simpleShader.uniforms.angle);
+simpleShader.uniforms.position = new Float32Array([0, 0]);
+this.stage.filters = [simpleShader];
+
+        document.addEventListener('mousemove', (e) => {
+            simpleShader.uniforms.position = new Float32Array([e.clientX, 1000-e.clientY]);
+        });
+
+
+            requestAnimationFrame(this.animate.bind(this));
+    }
+
+    animate() {
+        requestAnimationFrame(this.animate.bind(this));
+        this.renderer.render(this.stage);
+    }
+}
+      
+let boss = new Boss()
+
+</script>
